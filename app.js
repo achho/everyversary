@@ -1,10 +1,10 @@
-/* Milestones — timezone-naive date/time arithmetic.
+/* Everyversary - timezone-naive date/time arithmetic.
    Date's UTC getters/setters are used only as a timezone-neutral Gregorian
    arithmetic engine. No local timezone or UTC conversion is applied. */
 
 "use strict";
 
-const STORAGE_KEY = "milestones.entries.v1";
+const STORAGE_KEY = "everyversary.entries.v1";
 const MIN_HORIZON_MONTHS = 3;
 const MAX_HORIZON_YEARS = 100;
 const SECONDS_PER_DAY = 86400;
@@ -35,9 +35,9 @@ const UNITS = [
 const $ = (id) => document.getElementById(id);
 const form = $("entry-form");
 const editor = $("editor");
-const rows = $("milestone-rows");
+const rows = $("everyversary-rows");
 let entries = loadEntries();
-let milestones = [];
+let Everyversaries = [];
 
 function makeUtcDate(year, monthIndex, day, hour = 0, minute = 0, second = 0) {
   const d = new Date(0);
@@ -96,7 +96,7 @@ function getNaiveNowMs() {
   ).getTime();
 }
 
-function generateMilestones(nowMs) {
+function generateEveryversaries(nowMs) {
   const minMs = addCalendarMonths(nowMs, MIN_HORIZON_MONTHS);
   const maxMs = addCalendarYears(nowMs, MAX_HORIZON_YEARS);
   const maxSeconds = Math.floor((maxMs - nowMs) / 1000);
@@ -164,20 +164,20 @@ function formatCountdown(deltaMs) {
   return `${totalSeconds}s`;
 }
 
-function renderMilestones() {
+function renderEveryversaries() {
   const now = getNaiveNowMs(); // current local wall-clock fields, kept timezone-naive
-  milestones = generateMilestones(now);
+  Everyversaries = generateEveryversaries(now);
   const horizon = $("horizon").value;
   const nameFilter = $("name-filter").value.trim().toLocaleLowerCase();
 
-  const visible = milestones.filter(m =>
+  const visible = Everyversaries.filter(m =>
     (horizon === "all" ||
      m.targetMs <= now + Number(horizon) * SECONDS_PER_DAY * 1000) &&
     (!nameFilter || m.name.toLocaleLowerCase().includes(nameFilter))
   );
 
   if (!visible.length) {
-    rows.innerHTML = `<tr><td colspan="5" class="empty">${entries.length ? "No milestones in this time window." : "Add someone to see upcoming milestones."}</td></tr>`;
+    rows.innerHTML = `<tr><td colspan="5" class="empty">${entries.length ? "No Everyversaries in this time window." : "Add someone to see upcoming Everyversaries."}</td></tr>`;
     return;
   }
   rows.innerHTML = visible.map(m => `
@@ -185,7 +185,7 @@ function renderMilestones() {
       <td>${formatNaive(m.targetMs, true)}</td>
       <td>${formatCountdown(m.targetMs - now)}</td>
       <td>${escapeHtml(m.name)}</td>
-      <td class="milestone">${escapeHtml(m.label)}</td>
+      <td class="everyversary">${escapeHtml(m.label)}</td>
     </tr>`).join("");
 }
 
@@ -204,7 +204,7 @@ function renderEntries() {
 }
 
 function render() {
-  renderMilestones();
+  renderEveryversaries();
   renderEntries();
 }
 
@@ -267,8 +267,8 @@ form.addEventListener("submit", event => {
 $("add-toggle").addEventListener("click", () => showEditor());
 $("cancel-edit").addEventListener("click", closeEditor);
 $("cancel-entry").addEventListener("click", closeEditor);
-$("horizon").addEventListener("change", renderMilestones);
-$("name-filter").addEventListener("input", renderMilestones);
+$("horizon").addEventListener("change", renderEveryversaries);
+$("name-filter").addEventListener("input", renderEveryversaries);
 
 function setStatus(message) {
   $("status").textContent = message;
@@ -335,7 +335,7 @@ function exportCsv() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "milestones.csv";
+  a.download = "Everyversaries.csv";
   a.click();
   URL.revokeObjectURL(url);
   setStatus("CSV exported.");
@@ -374,4 +374,4 @@ dropZone.addEventListener("drop", async event => {
 render();
 
 // Keep the countdowns current without requiring a page reload.
-window.setInterval(renderMilestones, 60 * 1000);
+window.setInterval(renderEveryversaries, 60 * 1000);
