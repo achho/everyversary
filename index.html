@@ -16,7 +16,6 @@
         <h1>Everyversary</h1>
         <p class="subtitle">Always a date to celebrate.</p>
       </div>
-      <button id="add-toggle" class="button button-dark" type="button">Add entry</button>
     </header>
 
     <section id="editor" class="panel editor" hidden aria-labelledby="editor-title">
@@ -79,16 +78,23 @@
 
     <section class="entries">
       <div class="entries-heading">
-        <h2>Entries</h2>
-        <div class="entries-tools">
+        <div class="entries-title">
+          <h2>Entries</h2>
           <span id="entry-count" class="muted"></span>
-          <button id="import-button" class="text-button" type="button">Import CSV</button>
-          <button id="export-button" class="text-button" type="button">Export CSV</button>
-          <input id="csv-file" type="file" accept=".csv,text/csv" hidden>
         </div>
+        <button id="add-toggle" class="button button-dark" type="button">
+          Add entry
+        </button>
       </div>
 
-      <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="Drop a CSV file here or click to import">
+      <div class="entries-tools">
+        <button id="import-button" class="text-button" type="button">Import CSV</button>
+        <button id="export-button" class="text-button" type="button">Export CSV</button>
+        <input id="csv-file" type="file" accept=".csv,text/csv" hidden>
+      </div>
+
+      <div id="drop-zone" class="drop-zone" tabindex="0" role="button"
+           aria-label="Drop a CSV file here or click to import">
         Drop a CSV file here, or <span>choose a file</span>
       </div>
 
