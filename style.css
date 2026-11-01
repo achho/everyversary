@@ -66,6 +66,27 @@ td:last-child, th:last-child { padding-right: 2px; }
 .entry-description { display: grid; gap: 1px; }
 .entry-person { font-weight: 600; }
 .entry-actions { display: flex; gap: 12px; }
+.entries-selection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0.75rem 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.entries-selection label,
+.entry-share-select {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.entry-share-select input,
+.entries-selection input {
+  accent-color: var(--accent);
+}
 .year-pagination { display: flex; align-items: center; gap: 1rem; }
 .year-pagination strong { min-width: 3rem; text-align: center; }
 .year-pagination button:disabled { opacity: 0.3; cursor: default; }

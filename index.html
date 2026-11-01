@@ -91,6 +91,15 @@
           Add entry
         </button>
       </div>
+      <div class="entries-selection">
+        <label>
+          <input id="select-all-entries" type="checkbox">
+          Select all
+        </label>
+        <button id="copy-selected-link" class="text-button" type="button" hidden>
+          Copy link
+        </button>
+      </div>
 
       <div class="entries-tools">
         <button id="import-button" class="text-button" type="button">Import CSV</button>
@@ -120,6 +129,9 @@
         <span class="entry-source muted"></span>
       </div>
       <div class="entry-actions">
+        <label class="entry-share-select" hidden>
+          <input class="select-entry" type="checkbox" aria-label="Select entry to share">
+        </label>
         <button class="text-button save-shared" type="button" hidden>Save</button>
         <button class="text-button dismiss-shared" type="button" hidden>Dismiss</button>
         <button class="text-button copy-share" type="button" hidden>Copy link</button>
