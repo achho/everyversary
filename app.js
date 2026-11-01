@@ -38,12 +38,96 @@ const editor = $("editor");
 const rows = $("everyversary-rows");
 let entries = loadEntries();
 let Everyversaries = [];
+let sharedEntry = null;
+let displayedYear = new Date().getFullYear();
+
+function getSharedEntryFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+
+  const name = params.get("name")?.trim();
+  const date = params.get("date");
+  const rawTime = params.get("time") || "";
+  const time = parseSharedTime(rawTime);
+  if (time === null) return null;
+
+  if (!name || !date) return null;
+
+  // Validate date and optional time.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  if (time && !/^\d{2}:\d{2}$/.test(time)) return null;
+
+  const dateParts = date.split("-").map(Number);
+  const [year, month, day] = dateParts;
+
+  const check = new Date(year, month - 1, day);
+  if (
+    check.getFullYear() !== year ||
+    check.getMonth() !== month - 1 ||
+    check.getDate() !== day
+  ) return null;
+
+  return {
+    id: "shared",
+    name,
+    date,
+    time,
+    startMs: parseNaiveDate(date, time),
+    shared: true
+  };
+}
+
+function getDisplayEntries() {
+  if (!sharedEntry) return entries;
+
+  const alreadySaved = entries.some(entry =>
+    entry.name.toLocaleLowerCase() === sharedEntry.name.toLocaleLowerCase() &&
+    entry.date === sharedEntry.date &&
+    (entry.time || "") === sharedEntry.time
+  );
+
+  return alreadySaved ? entries : [...entries, sharedEntry];
+}
+
+async function copyShareLink(entry) {
+  const url = new URL(window.location.href);
+
+  // Start with a clean URL, without any previous shared-entry parameters.
+  url.search = "";
+  url.hash = "";
+
+  url.searchParams.set("name", entry.name);
+  url.searchParams.set("date", entry.date);
+
+  if (entry.time) {
+    url.searchParams.set("time", entry.time.slice(0, 5).replace(":", ""));
+  }
+
+  try {
+    await navigator.clipboard.writeText(url.toString());
+    setStatus("Share link copied.");
+  } catch {
+    setStatus("Could not copy link. Check clipboard permissions.");
+  }
+}
 
 function makeUtcDate(year, monthIndex, day, hour = 0, minute = 0, second = 0) {
   const d = new Date(0);
   d.setUTCHours(hour, minute, second, 0);
   d.setUTCFullYear(year, monthIndex, day);
   return d;
+}
+
+function parseSharedTime(value) {
+  if (!value) return "";
+
+  if (!/^\d{4}$/.test(value)) return null;
+
+  const hours = Number(value.slice(0, 2));
+  const minutes = Number(value.slice(2, 4));
+
+  if (hours > 23 || minutes > 59) return null;
+
+  return `${value.slice(0, 2)}:${value.slice(2, 4)}`;
 }
 
 function parseNaiveDate(dateText, timeText = "") {
@@ -61,11 +145,13 @@ function parseNaiveDate(dateText, timeText = "") {
   return d.getTime();
 }
 
-function formatNaive(ms, includeSeconds = false) {
+function formatNaive(ms) {
   const d = new Date(ms);
-  const pad = (n) => String(n).padStart(2, "0");
-  const date = `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
-  const time = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}${includeSeconds ? ":" + pad(d.getUTCSeconds()) : ""}`;
+  const pad = n => String(n).padStart(2, "0");
+
+  const date = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  const time = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+
   return `${date} ${time}`;
 }
 
@@ -96,13 +182,13 @@ function getNaiveNowMs() {
   ).getTime();
 }
 
-function generateEveryversaries(nowMs) {
+function generateEveryversaries(nowMs, sourceEntries = entries) {
   const minMs = addCalendarMonths(nowMs, MIN_HORIZON_MONTHS);
   const maxMs = addCalendarYears(nowMs, MAX_HORIZON_YEARS);
   const maxSeconds = Math.floor((maxMs - nowMs) / 1000);
   const result = [];
 
-  for (const entry of entries) {
+  for (const entry of sourceEntries) {
     for (const number of NICE_NUMBERS) {
       for (const unit of UNITS) {
         let targetMs;
@@ -153,54 +239,116 @@ function escapeHtml(value) {
   })[c]);
 }
 
-function formatCountdown(deltaMs) {
-  const totalSeconds = Math.max(0, Math.floor(deltaMs / 1000));
-  const days = Math.floor(totalSeconds / SECONDS_PER_DAY);
-  if (days >= 1) return `${days.toLocaleString("en-US")}d`;
-  const hours = Math.floor(totalSeconds / 3600);
-  if (hours >= 1) return `${hours}h`;
-  const minutes = Math.floor(totalSeconds / 60);
-  if (minutes >= 1) return `${minutes}m`;
-  return `${totalSeconds}s`;
+function saveSharedEntry() {
+  if (!sharedEntry) return;
+
+  const alreadySaved = entries.some(entry =>
+    entry.name.toLocaleLowerCase() === sharedEntry.name.toLocaleLowerCase() &&
+    entry.date === sharedEntry.date &&
+    (entry.time || "") === sharedEntry.time
+  );
+
+  if (!alreadySaved) {
+    entries.push({
+      id: makeId(),
+      name: sharedEntry.name,
+      date: sharedEntry.date,
+      time: sharedEntry.time,
+      startMs: sharedEntry.startMs
+    });
+
+    persist();
+  }
+
+  sharedEntry = null;
+  render();
+  setStatus("Entry saved.");
+}
+
+function dismissSharedEntry() {
+  sharedEntry = null;
+  renderEntries();
+  renderEveryversaries();
 }
 
 function renderEveryversaries() {
-  const now = getNaiveNowMs(); // current local wall-clock fields, kept timezone-naive
-  Everyversaries = generateEveryversaries(now);
-  const horizon = $("horizon").value;
+  const now = getNaiveNowMs();
+  const currentYear = new Date(now).getUTCFullYear();
+  const maxYear = currentYear + MAX_HORIZON_YEARS;
+
+  // Keep the selected year within the available range.
+  displayedYear = Math.max(currentYear, Math.min(displayedYear, maxYear));
+
+  Everyversaries = generateEveryversaries(now, getDisplayEntries());
+
   const nameFilter = $("name-filter").value.trim().toLocaleLowerCase();
 
+  $("display-year").textContent = displayedYear;
+  $("previous-year").disabled = displayedYear <= currentYear;
+  $("next-year").disabled = displayedYear >= maxYear;
+
   const visible = Everyversaries.filter(m =>
-    (horizon === "all" ||
-     m.targetMs <= now + Number(horizon) * SECONDS_PER_DAY * 1000) &&
+    new Date(m.targetMs).getUTCFullYear() === displayedYear &&
     (!nameFilter || m.name.toLocaleLowerCase().includes(nameFilter))
   );
 
   if (!visible.length) {
-    rows.innerHTML = `<tr><td colspan="5" class="empty">${entries.length ? "No Everyversaries in this time window." : "Add someone to see upcoming Everyversaries."}</td></tr>`;
+    rows.innerHTML = `<tr><td colspan="4" class="empty">${
+      getDisplayEntries().length
+        ? "No Everyversaries in this year."
+        : "Add someone to see upcoming Everyversaries."
+    }</td></tr>`;
     return;
   }
+
   rows.innerHTML = visible.map(m => `
     <tr>
-      <td>${formatNaive(m.targetMs, true)}</td>
-      <td>${formatCountdown(m.targetMs - now)}</td>
+      <td>${formatNaive(m.targetMs)}</td>
       <td>${escapeHtml(m.name)}</td>
       <td class="everyversary">${escapeHtml(m.label)}</td>
     </tr>`).join("");
 }
 
 function renderEntries() {
-  $("entry-count").textContent = `${entries.length} ${entries.length === 1 ? "entry" : "entries"}`;
+  const displayEntries = getDisplayEntries();
+
+  $("entry-count").textContent =
+    `${entries.length} ${entries.length === 1 ? "entry" : "entries"}`;
+
   const list = $("entry-list");
   list.innerHTML = "";
-  for (const entry of entries) {
+
+  displayEntries.forEach(entry => {
     const item = $("entry-template").content.firstElementChild.cloneNode(true);
+
     item.querySelector(".entry-person").textContent = entry.name;
-    item.querySelector(".entry-start").textContent = formatNaive(entry.startMs, true);
-    item.querySelector(".edit-entry").addEventListener("click", () => editEntry(entry.id));
-    item.querySelector(".delete-entry").addEventListener("click", () => deleteEntry(entry.id));
+    item.querySelector(".entry-start").textContent = formatNaive(entry.startMs);
+
+    if (entry.shared) {
+      item.querySelector(".entry-source").textContent = "From link · temporary";
+      item.querySelector(".save-shared").hidden = false;
+      item.querySelector(".dismiss-shared").hidden = false;
+
+      item.querySelector(".copy-share").hidden = true;
+
+      item.querySelector(".edit-entry").hidden = true;
+      item.querySelector(".delete-entry").hidden = true;
+
+      item.querySelector(".save-shared").addEventListener("click", saveSharedEntry);
+      item.querySelector(".dismiss-shared").addEventListener("click", dismissSharedEntry);
+    } else {
+      item.querySelector(".save-shared").hidden = true;
+      item.querySelector(".dismiss-shared").hidden = true;
+
+      item.querySelector(".copy-share").hidden = false;
+      item.querySelector(".copy-share").addEventListener("click", () => copyShareLink(entry));
+
+      item.querySelector(".edit-entry").addEventListener("click", () => editEntry(entry.id));
+      item.querySelector(".delete-entry").addEventListener("click", () => deleteEntry(entry.id));
+    }
+
     list.appendChild(item);
-  }
+  });
 }
 
 function render() {
@@ -267,7 +415,16 @@ form.addEventListener("submit", event => {
 $("add-toggle").addEventListener("click", () => showEditor());
 $("cancel-edit").addEventListener("click", closeEditor);
 $("cancel-entry").addEventListener("click", closeEditor);
-$("horizon").addEventListener("change", renderEveryversaries);
+$("previous-year").addEventListener("click", () => {
+  displayedYear--;
+  renderEveryversaries();
+});
+
+$("next-year").addEventListener("click", () => {
+  displayedYear++;
+  renderEveryversaries();
+});
+
 $("name-filter").addEventListener("input", renderEveryversaries);
 
 function setStatus(message) {
@@ -371,6 +528,7 @@ dropZone.addEventListener("drop", async event => {
   catch (error) { alert(`Import failed: ${error.message}`); }
 });
 
+sharedEntry = getSharedEntryFromUrl();
 render();
 
 // Keep the countdowns current without requiring a page reload.
