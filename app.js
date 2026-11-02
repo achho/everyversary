@@ -209,15 +209,16 @@ function getNaiveNowMs() {
 }
 
 function generateEveryversaries(nowMs, sourceEntries = entries) {
-  const minMs = addCalendarMonths(nowMs, MIN_HORIZON_MONTHS);
   const maxMs = addCalendarYears(nowMs, MAX_HORIZON_YEARS);
-  const maxSeconds = Math.floor((maxMs - nowMs) / 1000);
   const result = [];
 
   for (const entry of sourceEntries) {
+    const minMs = addCalendarMonths(entry.startMs, MIN_HORIZON_MONTHS);
+
     for (const number of NICE_NUMBERS) {
       for (const unit of UNITS) {
         let targetMs;
+
         if (unit.kind === "fixed") {
           targetMs = entry.startMs + number * unit.factor * 1000;
         } else if (unit.kind === "months") {
@@ -225,7 +226,8 @@ function generateEveryversaries(nowMs, sourceEntries = entries) {
         } else {
           targetMs = addCalendarYears(entry.startMs, number);
         }
-        if (targetMs >= minMs && targetMs <= maxMs) {
+
+        if (targetMs >= nowMs && targetMs >= minMs && targetMs <= maxMs) {
           result.push({
             id: entry.id,
             name: entry.name,
@@ -239,6 +241,7 @@ function generateEveryversaries(nowMs, sourceEntries = entries) {
       }
     }
   }
+
   result.sort((a, b) => a.targetMs - b.targetMs || a.name.localeCompare(b.name));
   return result;
 }
