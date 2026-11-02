@@ -52,10 +52,14 @@
         <h2>Upcoming Everyversaries</h2>
         <section class="toolbar" aria-label="Table controls">
           <div class="toolbar-left">
-            <div class="year-pagination">
-              <button id="previous-year" class="text-button" type="button">← Previous</button>
-              <strong id="display-year"></strong>
-              <button id="next-year" class="text-button" type="button">Next →</button>
+            <div class="pagination">
+              <button id="previous-page" class="text-button" type="button">
+                ← Previous
+              </button>
+              <span id="page-indicator" class="muted"></span>
+              <button id="next-page" class="text-button" type="button">
+                Next →
+              </button>
             </div>
 
             <label class="filter-label" for="name-filter">Name</label>

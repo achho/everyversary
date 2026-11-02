@@ -41,7 +41,8 @@ let entries = loadEntries();
 let Everyversaries = [];
 let sharedEntries = [];
 let selectedEntryIds = new Set();
-let displayedYear = new Date().getFullYear();
+const PAGE_SIZE = 20;
+let currentPage = 0;
 
 function getSharedEntriesFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -302,29 +303,32 @@ function dismissSharedEntry(id) {
 
 function renderEveryversaries() {
   const now = getNaiveNowMs();
-  const currentYear = new Date(now).getUTCFullYear();
-  const maxYear = currentYear + MAX_HORIZON_YEARS;
-
-  // Keep the selected year within the available range.
-  displayedYear = Math.max(currentYear, Math.min(displayedYear, maxYear));
 
   Everyversaries = generateEveryversaries(now, getDisplayEntries());
 
   const nameFilter = $("name-filter").value.trim().toLocaleLowerCase();
 
-  $("display-year").textContent = displayedYear;
-  $("previous-year").disabled = displayedYear <= currentYear;
-  $("next-year").disabled = displayedYear >= maxYear;
-
-  const visible = Everyversaries.filter(m =>
-    new Date(m.targetMs).getUTCFullYear() === displayedYear &&
-    (!nameFilter || m.name.toLocaleLowerCase().includes(nameFilter))
+  const filtered = Everyversaries.filter(m =>
+    !nameFilter || m.name.toLocaleLowerCase().includes(nameFilter)
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  currentPage = Math.min(currentPage, totalPages - 1);
+
+  const start = currentPage * PAGE_SIZE;
+  const visible = filtered.slice(start, start + PAGE_SIZE);
+
+  $("page-indicator").textContent = filtered.length
+    ? `${start + 1}–${start + visible.length} of ${filtered.length}`
+    : "0 entries";
+
+  $("previous-page").disabled = currentPage === 0;
+  $("next-page").disabled = currentPage >= totalPages - 1;
 
   if (!visible.length) {
     rows.innerHTML = `<tr><td colspan="4" class="empty">${
       getDisplayEntries().length
-        ? "No Everyversaries in this year."
+        ? "No upcoming Everyversaries."
         : "Add someone to see upcoming Everyversaries."
     }</td></tr>`;
     return;
@@ -335,6 +339,7 @@ function renderEveryversaries() {
       <td>${formatNaive(m.targetMs)}</td>
       <td>${escapeHtml(m.name)}</td>
       <td class="everyversary">${escapeHtml(m.label)}</td>
+      <td></td>
     </tr>`).join("");
 }
 
@@ -423,6 +428,7 @@ function updateSelectionControls() {
 }
 
 function render() {
+  currentPage = 0;
   renderEveryversaries();
   renderEntries();
 }
@@ -489,17 +495,31 @@ form.addEventListener("submit", event => {
 $("add-toggle").addEventListener("click", () => showEditor());
 $("cancel-edit").addEventListener("click", closeEditor);
 $("cancel-entry").addEventListener("click", closeEditor);
-$("previous-year").addEventListener("click", () => {
-  displayedYear--;
-  renderEveryversaries();
+
+
+$("previous-page").addEventListener("click", () => {
+  if (currentPage > 0) {
+    currentPage--;
+    renderEveryversaries();
+  }
 });
 
-$("next-year").addEventListener("click", () => {
-  displayedYear++;
-  renderEveryversaries();
+$("next-page").addEventListener("click", () => {
+  const nameFilter = $("name-filter").value.trim().toLocaleLowerCase();
+  const filteredCount = Everyversaries.filter(m =>
+    !nameFilter || m.name.toLocaleLowerCase().includes(nameFilter)
+  ).length;
+
+  if ((currentPage + 1) * PAGE_SIZE < filteredCount) {
+    currentPage++;
+    renderEveryversaries();
+  }
 });
 
-$("name-filter").addEventListener("input", renderEveryversaries);
+$("name-filter").addEventListener("input", () => {
+  currentPage = 0;
+  renderEveryversaries();
+});
 $("select-all-entries").addEventListener("change", event => {
   if (event.target.checked) {
     selectedEntryIds = new Set(entries.map(entry => entry.id));

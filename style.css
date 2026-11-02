@@ -87,9 +87,23 @@ td:last-child, th:last-child { padding-right: 2px; }
 .entries-selection input {
   accent-color: var(--accent);
 }
-.year-pagination { display: flex; align-items: center; gap: 1rem; }
-.year-pagination strong { min-width: 3rem; text-align: center; }
-.year-pagination button:disabled { opacity: 0.3; cursor: default; }
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pagination span {
+  min-width: 6rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pagination button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 footer { margin-top: 28px; color: var(--muted); font-size: 11px; }
 #status { text-align: right; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
@@ -151,21 +165,6 @@ h1 {
 .entries-heading h2 {
   font-size: 19px;
   letter-spacing: -.4px;
-}
-
-/* Year navigation */
-
-.year-pagination {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.year-pagination strong {
-  font-size: 20px;
-  min-width: 52px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Table */
@@ -265,7 +264,7 @@ footer {
     width: 100%;
   }
 
-  .year-pagination {
+  .pagination {
     justify-content: space-between;
     width: 100%;
   }
